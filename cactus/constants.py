@@ -15,6 +15,7 @@ ENV_COLLISION_WEIGHT = "collision_weight"
 ENV_MAKESPAN_MODE = "makespan_mode"
 ENV_NR_INIT_THREAD = "nr_init_threads"
 ENV_2D = 2
+ENV_POSE_DIM = 3
 ENV_PRIMAL_MAP = "primal_map"
 ENV_COMPLETION_REWARD = "completion_reward"
 ENV_VERTEX_COLLISIONS = "vertex_collisions"
@@ -23,6 +24,13 @@ ENV_INIT_GOAL_RADIUS = "init_goal_radius"
 ENV_COMPLETION_RATE = "completion_rate"
 ENV_START_POSITIONS = "start_positions"
 ENV_GOAL_POSITIONS = "goal_positions"
+ENV_START_POSES = "start_poses"
+ENV_GOAL_POSES = "goal_poses"
+ENV_START_ORIENTATIONS = "start_orientations"
+ENV_GOAL_ORIENTATIONS = "goal_orientations"
+ENV_NR_ORIENTATIONS = "nr_orientations"
+ENV_AGENT_FOOTPRINT = "agent_footprint"
+ENV_GOAL_ORIENTATION_REQUIRED = "goal_orientation_required"
 TEST_INIT_GOAL_RADIUS = "test_init_goal_radius"
 MAP_NAME = "map_name"
 INSTANCE_FOLDER = "instance_folder"
@@ -38,6 +46,22 @@ WEST  = 3
 EAST  = 4
 GRID_ACTIONS = [WAIT, NORTH, SOUTH, WEST, EAST]
 NR_GRID_ACTIONS = len(GRID_ACTIONS)
+
+# Oriented Multi-Cell Agent Constants
+THETA_0 = 0
+THETA_90 = 1
+THETA_180 = 2
+THETA_270 = 3
+THETA_VALUES = [THETA_0, THETA_90, THETA_180, THETA_270]
+DEFAULT_NR_ORIENTATIONS = len(THETA_VALUES)
+DEFAULT_AGENT_FOOTPRINT = ((0, 0),)
+
+FORWARD = 1
+BACKWARD = 2
+ROTATE_LEFT = 3
+ROTATE_RIGHT = 4
+ORIENTED_GRID_ACTIONS = [WAIT, FORWARD, BACKWARD, ROTATE_LEFT, ROTATE_RIGHT]
+NR_ORIENTED_GRID_ACTIONS = len(ORIENTED_GRID_ACTIONS)
 
 # Algorithm Constants
 ALGORITHM_NAME = "algorithm_name"
@@ -111,6 +135,8 @@ NR_ATTENTION_HEADS = "nr_attention_heads"
 CURRICULUM_NAME = "curriculum_name"
 RANDOM_CURRICULUM = "Random"
 CACTUS_CURRICULUM = "CACTUS"
+CURRICULUM_RADIUS_MODE = "curriculum_radius_mode"
+CURRICULUM_RADIUS_ANCHOR_CHEBYSHEV = "anchor_chebyshev"
 RADIUS_UPDATE_INTERVAL = "radius_update_interval"
 RESET_CURRICULUM_BUFFER = "reset_curriculum_buffer"
 SUCCESS_RATE = "success_rate"

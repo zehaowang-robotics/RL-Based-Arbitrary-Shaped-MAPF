@@ -31,11 +31,12 @@ class PRIMALGridWorld(MAPFGridWorld):
             for y in range(self.columns):
                 start_value = self.primal_map[0][x][y]
                 if start_value > 0:
-                    self.current_positions[start_value-1] = self.int_tensor([x,y])
+                    self.current_positions[start_value-1, :ENV_2D] = self.int_tensor([x,y])
+                    self.current_positions[start_value-1, ENV_2D] = THETA_0
                 goal_value = self.primal_map[1][x][y]
                 if goal_value > 0:
                     goal_position = (x,y)
-                    self.goal_positions[goal_value-1] = self.int_tensor(goal_position)
+                    self.goal_positions[goal_value-1, :ENV_2D] = self.int_tensor(goal_position)
+                    self.goal_positions[goal_value-1, ENV_2D] = THETA_0
                     self.occupied_goal_positions[x][y] = goal_value-1
         return self.joint_observation()
-

@@ -4,6 +4,10 @@
 
 - CACTUS: Confidence-based Auto- Curriculum for Team Update Stability [1]
 
+## Design Notes
+
+- Multi-cell agent refactor spec: `docs/multi_cell_agent_modeling_spec.md`
+
 ## Prerequisites
 Run these commands
 ```

@@ -13,35 +13,42 @@ class CollisionGridWorld(GridWorld):
         self.edge_collision_buffer = self.bool_ones(self.nr_agents)
 
     def move_condition(self, new_positions):
-        self.current_position_map[:] = -1.0
+        self.vertex_collision_buffer.fill_(False)
+        self.edge_collision_buffer.fill_(False)
         condition, _ = super(CollisionGridWorld, self).move_condition(new_positions)
         condition = condition.all(1)
-        self.edge_collision_buffer.fill_(False)
-        self.vertex_collision_buffer.fill_(False)
-        x0 = self.current_positions[:,0]
-        y0 = self.current_positions[:,1]
-        self.current_position_map[x0,y0] = self.agent_ids
-        x1 = torch.where(condition, new_positions[:,0], self.current_positions[:,0])
-        y1 = torch.where(condition, new_positions[:,1], self.current_positions[:,1])
-        self.next_position_map[x1,y1] = self.agent_ids
-        self.vertex_collision_buffer[:] = (self.next_position_map[x1,y1] != self.agent_ids)
-        other_origins = -self.int_ones(self.nr_agents)
-        other_origins = self.current_position_map[x1,y1]
-        occupied = other_origins >= 0
-        filter_condition = condition[other_origins.clamp(0, self.nr_agents)]
-        other_origins = torch.where(torch.logical_and(filter_condition, occupied), other_origins, -1)
-        occupied = other_origins >= 0
-        not_same = other_origins != self.agent_ids
-        edge_condition = torch.logical_and(occupied, not_same)
-        indices = other_origins[edge_condition]
-        x = new_positions[indices,0]
-        y = new_positions[indices,1]
-        if edge_condition.any():
-            self.edge_collision_buffer[edge_condition] = self.current_position_map[x,y] == self.agent_ids[edge_condition]
+        candidate_positions = torch.where(condition.unsqueeze(1), new_positions, self.current_positions)
+        source_cells = self.populate_position_map(self.current_position_map, self.current_positions)
+        target_cells = self.populate_position_map(self.next_position_map, candidate_positions)
+
+        cell_to_agents = {}
+        for agent_id, cells in enumerate(target_cells):
+            for cell in cells.tolist():
+                key = (int(cell[0]), int(cell[1]))
+                cell_to_agents.setdefault(key, []).append(agent_id)
+        for agent_ids in cell_to_agents.values():
+            if len(agent_ids) > 1:
+                self.vertex_collision_buffer[agent_ids] = True
+
+        moved = (candidate_positions != self.current_positions).any(1)
+        source_sets = [set(map(tuple, cells.tolist())) for cells in source_cells]
+        target_sets = [set(map(tuple, cells.tolist())) for cells in target_cells]
+        for i in range(self.nr_agents):
+            if not moved[i]:
+                continue
+            for j in range(i + 1, self.nr_agents):
+                if not moved[j]:
+                    continue
+                exchanged_cells = target_sets[i].intersection(source_sets[j]) and target_sets[j].intersection(source_sets[i])
+                if exchanged_cells:
+                    self.edge_collision_buffer[i] = True
+                    self.edge_collision_buffer[j] = True
+
         no_collisions = torch.logical_not(torch.logical_or(self.vertex_collision_buffer, self.edge_collision_buffer))
         condition = torch.logical_and(condition, no_collisions)
-        return condition.unsqueeze(1).expand(self.nr_agents, ENV_2D), (self.vertex_collision_buffer, self.edge_collision_buffer)
+        return condition.unsqueeze(1).expand_as(new_positions), (self.vertex_collision_buffer, self.edge_collision_buffer)
 
     def reset(self):
         self.current_position_map[:] = -1.0
+        self.next_position_map[:] = -1.0
         return super(CollisionGridWorld, self).reset()
