@@ -8,7 +8,7 @@ from cactus.constants import *
 nr_episodes = 1
 params = {}
 params[ENV_OBSERVATION_SIZE] = 7
-params[ENV_NR_AGENTS] = 8
+params[ENV_NR_AGENTS] = 2
 params[SAMPLE_NR_AGENTS] = params[ENV_NR_AGENTS]
 params[HIDDEN_LAYER_DIM] = 64
 params[NUMBER_OF_EPOCHS] = 5000

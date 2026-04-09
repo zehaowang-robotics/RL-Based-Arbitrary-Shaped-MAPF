@@ -1,4 +1,4 @@
-# RL-Based Arbitrary-Shaped Multi-Agent Path Finding
+﻿# RL-Based Arbitrary-Shaped Multi-Agent Path Finding
 
 This repository is based on `rl4mapf` and is being extended toward arbitrary-shaped, multi-cell MAPF agents with rotation.
 
@@ -13,7 +13,7 @@ This repository is based on `rl4mapf` and is being extended toward arbitrary-sha
 | 已完成 | 1 | 冻结建模规格 | 新增配置，整理常量 | 确定 `theta`、动作集合、`footprint` 格式、`goal` 是否含朝向 | 0.5 天 |
 | 已完成 | 2 | 重构状态表示 | [`gridworld.py`](cactus/env/gridworld.py) | `current_positions/goal_positions` 从 2D 点扩成 pose；新增 `footprint` 变换函数 | 1 天 |
 | 已完成 | 3 | 重写转移与碰撞 | [`gridworld.py`](cactus/env/gridworld.py), [`collision_gridworld.py`](cactus/env/collision_gridworld.py) | 支持旋转动作、`footprint` 占用、多格碰撞、边交换判定 | 2 天 |
-| 未完成 | 4 | 重写 reset / 目标采样 / curriculum 半径 | [`gridworld.py`](cactus/env/gridworld.py), [`curriculum.py`](cactus/curriculum.py) | 生成不重叠初始 pose；`init_goal_radius` 改为基于 anchor 或 swept area 的采样 | 1 天 |
+| 已完成（50 epoch smoke） | 4 | 重写 reset / 目标采样 / curriculum 半径 | [`gridworld.py`](cactus/env/gridworld.py), [`curriculum.py`](cactus/curriculum.py) | 生成不重叠初始 pose；`init_goal_radius` 改为基于 anchor 或 swept area 的采样 | 1 天 |
 | 未完成 | 5 | 重写观测编码 | [`mapf_gridworld.py`](cactus/env/mapf_gridworld.py) | 观测里加入朝向、`footprint` 占用、可旋转性/可前进性信息 | 1.5 天 |
 | 未完成 | 6 | 调整动作 mask 与网络输入输出 | [`a2c_controller.py`](cactus/controller/a2c_controller.py), [`constants.py`](cactus/constants.py) | 新动作空间、非法动作 mask、可能的 observation channel 变更 | 1 天 |
 | 已完成（50 epoch smoke） | 7 | 跑通训练与评估 | [`run_training.py`](run_training.py), [`eval.py`](eval.py) | 至少 PPO+QMIX 跑通一个小规模实验 | 1 天 |
@@ -21,7 +21,10 @@ This repository is based on `rl4mapf` and is being extended toward arbitrary-sha
 
 Notes:
 
+- Phase 4 reset/curriculum refactor is now implemented and smoke-validated.
 - Phase 7 currently means a small PPO+QMIX smoke validation completed under the `rl` conda environment.
+- The current default training configuration in [`run_training.py`](run_training.py) uses `2` agents and procedurally generated `10x10` maps with densities `0`, `0.1`, `0.2`, and `0.3` to keep iteration time manageable.
+- The current default footprint is still single-cell: `DEFAULT_AGENT_FOOTPRINT = ((0, 0),)`.
 - Phases 5 and 6 are still pending, so the current training pipeline is not yet fully aligned with the new arbitrary-shaped agent dynamics.
 
 ## Design Notes
@@ -40,6 +43,12 @@ mkdir primal_test_envs
 ### Training maps
 
 Training maps are generated for each training run in `run_training.py` using `cactus.env.env_generator`.
+
+Current defaults:
+
+- map size: `10x10`
+- densities: `0`, `0.1`, `0.2`, `0.3`
+- number of agents: `2`
 
 ### Test maps
 

@@ -15,23 +15,28 @@ class Curriculum:
     def init_goal_radius(self):
         return -1.0
 
+    def set_init_goal_radius(self, radius):
+        for env in self.envs:
+            env.set_init_goal_radius(radius)
+
 class RandomCurriculum(Curriculum):
 
     def __init__(self, env, params) -> None:
         super(RandomCurriculum, self).__init__(env)
 
     def update_curriculum(self, objective_value, variance):
-        for env in self.envs:
-            env.set_init_goal_radius(None)
+        self.set_init_goal_radius(None)
 
 class CACTUSCurriculum(Curriculum):
     def __init__(self, envs, params) -> None:
         super(CACTUSCurriculum, self).__init__(envs)
         assertContains(params, RADIUS_UPDATE_INTERVAL)
         self.deviation_factor = get_param_or_default(params, DEVIATION_FACTOR, 2) # 97% confidence as default
+        self.radius_update_interval = get_param_or_default(params, RADIUS_UPDATE_INTERVAL, 1)
+        assert self.radius_update_interval > 0
+        self.radius_mode = get_param_or_default(params, CURRICULUM_RADIUS_MODE, CURRICULUM_RADIUS_ANCHOR_CHEBYSHEV)
         self.radius = 2
-        for env in self.envs:
-            env.set_init_goal_radius(self.radius)
+        self.set_init_goal_radius(self.radius)
         self.objective_values = []
         self.epoch_count = 0
         self.value_count = 0
@@ -52,21 +57,24 @@ class CACTUSCurriculum(Curriculum):
         self.value_count += 1
         self.total_sum += objective_value
         self.total_sum_squared += (objective_value*objective_value)
-        if self.value_count >= self.sliding_window_size:
+        if self.value_count >= self.sliding_window_size and self.should_adjust_radius():
             mean = self.total_sum/self.sliding_window_size
-            stddev = numpy.sqrt(self.total_sum_squared/self.sliding_window_size - mean*mean)
+            variance = max(0.0, self.total_sum_squared/self.sliding_window_size - mean*mean)
+            stddev = numpy.sqrt(variance)
             oldest_value = self.objective_values.pop(0)
             self.total_sum -= oldest_value
             self.total_sum_squared -= (oldest_value*oldest_value)
             if mean - self.deviation_factor*stddev >= self.improvement_threshold:
                 self.adjust_threshold(mean, stddev)
                 self.radius += 1
-                for env in self.envs:
-                    env.set_init_goal_radius(self.radius)
+                self.set_init_goal_radius(self.radius)
         self.epoch_count += 1
 
     def adjust_threshold(self, mean, stddev):
         pass
+
+    def should_adjust_radius(self):
+        return self.epoch_count > 0 and self.epoch_count % self.radius_update_interval == 0
 
 def make(params):
     curriculum_name = params[CURRICULUM_NAME]
