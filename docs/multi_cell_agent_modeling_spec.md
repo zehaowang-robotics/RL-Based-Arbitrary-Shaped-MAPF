@@ -4,7 +4,7 @@ This document freezes the modeling choices for the first implementation of multi
 
 ## Scope
 
-This spec applies to the next environment refactor. It does not change the current single-cell training code yet.
+This spec applies to the oriented multi-cell environment refactor. The current training default uses an L-shaped three-cell footprint unless overridden.
 
 ## Frozen Decisions
 
@@ -47,8 +47,8 @@ Rules:
 
 - The anchor cell is part of the footprint.
 - Local coordinates are integer grid offsets.
-- The canonical default is a single-cell agent:
-  `DEFAULT_AGENT_FOOTPRINT = ((0, 0),)`
+- The current default is an L-shaped three-cell agent with the anchor/state point at `(0, 0)`:
+  `DEFAULT_AGENT_FOOTPRINT = ((0, 0), (0, 1), (1, 0))`
 - Rotated occupancies are obtained by rotating each local offset around the anchor.
 
 Example 2x1 body:
