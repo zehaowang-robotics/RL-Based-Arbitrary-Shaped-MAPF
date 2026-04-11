@@ -4,6 +4,7 @@ from cactus.utils import get_param_or_default, assertEquals
 from cactus.constants import *
 from torch.distributions import Categorical
 from os.path import join
+import torch
 import torch.nn.functional as F
 import cactus.controller.critic as critic
 
@@ -11,11 +12,12 @@ class A2CController(Controller):
     
     def __init__(self, params) -> None:
         super(A2CController, self).__init__(params)
+        self.action_feasibility_channel = get_param_or_default(params, ENV_MAPF_ACTION_FEASIBILITY_CHANNEL, None)
         params[OUTPUT_DIM] = self.nr_actions
         self.policy_network = FFNModule(params)
         self.clip_ratio = get_param_or_default(params, CLIP_RATIO, 0.1)
         self.update_iterations = get_param_or_default(params, UPDATE_ITERATIONS, 1)
-        self.policy_parameters = self.policy_network.parameters()
+        self.policy_parameters = list(self.policy_network.parameters())
         self.policy_optimizer = torch.optim.Adam(self.policy_parameters, lr=self.learning_rate)
         self.has_critic = CRITIC_NAME in params
         if self.has_critic:
@@ -23,18 +25,29 @@ class A2CController(Controller):
         else:
             params[OUTPUT_DIM] = 1
             self.critic_network = FFNModule(params)
-            self.critic_parameters = self.critic_network.parameters()
+            self.critic_parameters = list(self.critic_network.parameters())
             self.critic_optimizer = torch.optim.Adam(self.critic_parameters, lr=self.learning_rate)
 
+    def has_action_feasibility_channels(self, channels):
+        return self.action_feasibility_channel is not None \
+            and self.action_feasibility_channel >= 0 \
+            and self.action_feasibility_channel + self.nr_actions <= channels
+
     def calculate_action_masks(self, joint_observation):
-        channels, o_size, o_size = self.observation_dim[0], self.observation_dim[1], self.observation_dim[2]
+        channels, o_size, _ = self.observation_dim[0], self.observation_dim[1], self.observation_dim[2]
         batch_size = joint_observation.size(0)
         joint_observation = joint_observation.view(batch_size, self.nr_agents, channels, o_size, o_size)
-        half_size = int(self.observation_dim[-1]/2)
+        half_size = int(o_size/2)
         invalid_actions = self.bool_zeros([batch_size, self.nr_agents, self.nr_actions])
-        for i, delta in enumerate(self.grid_operations[GRID_ACTIONS]):
-            dx,dy = delta[0], delta[1]
-            invalid_actions[:,self.agent_ids,i] = joint_observation[:,self.agent_ids,2,half_size+dx,half_size+dy].to(torch.bool)
+        if self.has_action_feasibility_channels(channels):
+            action_channels = joint_observation[:, :, self.action_feasibility_channel:self.action_feasibility_channel+self.nr_actions, half_size, half_size]
+            invalid_actions = action_channels <= 0
+        else:
+            mask_actions = GRID_ACTIONS[:min(self.nr_actions, NR_GRID_ACTIONS)]
+            for i, delta in enumerate(self.grid_operations[mask_actions]):
+                dx, dy = delta[0], delta[1]
+                invalid_actions[:,self.agent_ids,i] = joint_observation[:,self.agent_ids,MAPF_BLOCKED_CHANNEL,half_size+dx,half_size+dy].to(torch.bool)
+        invalid_actions[:,:,WAIT] = False
         action_mask = self.float_zeros_like(invalid_actions)
         action_mask[invalid_actions] = float('-inf')
         return action_mask.view(-1, self.nr_actions)
@@ -42,7 +55,7 @@ class A2CController(Controller):
     def get_parameter_count(self):
         nr_actor_params = sum(p.numel() for p in self.policy_network.parameters() if p.requires_grad)
         if self.has_critic:
-            self.critic_network.get_parameter_count()
+            nr_critic_params = self.critic_network.get_parameter_count()
         else:
             nr_critic_params = sum(p.numel() for p in self.critic_network.parameters() if p.requires_grad)
         return nr_actor_params + nr_critic_params
@@ -119,4 +132,3 @@ class A2CController(Controller):
             if i+1 < self.update_iterations:
                 action_logits = self.policy_network(obs)
                 probs = F.softmax(action_logits+action_mask, dim=-1)
-
