@@ -57,25 +57,28 @@ Example 2x1 body:
 
 ### 4. Action set
 
-The first oriented action space is:
+The oriented action space is:
 
 - `WAIT`
 - `FORWARD`
 - `BACKWARD`
 - `ROTATE_LEFT`
 - `ROTATE_RIGHT`
+- `STRAFE_LEFT`
+- `STRAFE_RIGHT`
 
-There is no strafe action in phase 1.
+The strafe actions translate the anchor one cell left or right relative to the current heading without changing orientation.
 
 Rationale:
 
-- It is the smallest useful action set for non-point agents.
-- It keeps collision logic and masking manageable.
-- It preserves a fixed action count of 5, which reduces downstream changes.
+- It supports forward/backward movement while still allowing lateral repositioning.
+- It keeps rotation as a separate in-place action.
+- It exposes a fixed action count of 7 to the policy and action mask.
 
 ### 5. Motion semantics
 
 - `FORWARD` and `BACKWARD` move the anchor by one grid cell along the agent heading.
+- `STRAFE_LEFT` and `STRAFE_RIGHT` move the anchor by one grid cell perpendicular to the heading without changing orientation.
 - `ROTATE_LEFT` and `ROTATE_RIGHT` rotate the footprint in place around the anchor.
 - A transition is valid only if every occupied cell after the action is in bounds, obstacle free, and collision free.
 
@@ -145,7 +148,6 @@ The first implementation does not include:
 
 - continuous headings
 - arbitrary-angle rotation
-- strafe actions
 - orientation-sensitive success by default
 - heterogeneous action spaces across agents
 - footprint-aware swept-area curriculum metrics

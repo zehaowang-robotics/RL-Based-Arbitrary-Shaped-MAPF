@@ -373,15 +373,32 @@ class GridWorld(Environment):
     def heading_deltas(self, orientations):
         return self.orientation_deltas[orientations.view(-1)].view(-1, ENV_2D)
 
+    def left_heading_deltas(self, orientations):
+        headings = self.heading_deltas(orientations)
+        left_headings = self.int_zeros_like(headings)
+        left_headings[:,0] = -headings[:,1]
+        left_headings[:,1] = headings[:,0]
+        return left_headings
+
+    def right_heading_deltas(self, orientations):
+        return -self.left_heading_deltas(orientations)
+
     def transition_poses(self, joint_action):
         next_positions = self.current_positions.clone()
-        headings = self.heading_deltas(self.pose_orientations(self.current_positions))
+        orientations = self.pose_orientations(self.current_positions)
+        headings = self.heading_deltas(orientations)
+        left_headings = self.left_heading_deltas(orientations)
+        right_headings = self.right_heading_deltas(orientations)
         forward_mask = joint_action == FORWARD
         backward_mask = joint_action == BACKWARD
+        strafe_left_mask = joint_action == STRAFE_LEFT
+        strafe_right_mask = joint_action == STRAFE_RIGHT
         rotate_left_mask = joint_action == ROTATE_LEFT
         rotate_right_mask = joint_action == ROTATE_RIGHT
         next_positions[forward_mask, :ENV_2D] += headings[forward_mask]
         next_positions[backward_mask, :ENV_2D] -= headings[backward_mask]
+        next_positions[strafe_left_mask, :ENV_2D] += left_headings[strafe_left_mask]
+        next_positions[strafe_right_mask, :ENV_2D] += right_headings[strafe_right_mask]
         next_positions[rotate_left_mask, ENV_2D] = torch.remainder(next_positions[rotate_left_mask, ENV_2D] + 1, self.nr_orientations)
         next_positions[rotate_right_mask, ENV_2D] = torch.remainder(next_positions[rotate_right_mask, ENV_2D] - 1, self.nr_orientations)
         return next_positions

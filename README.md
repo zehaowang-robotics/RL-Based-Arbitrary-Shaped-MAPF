@@ -25,6 +25,7 @@ Notes:
 - Phase 7 currently means a small PPO+QMIX smoke validation completed under the `rl` conda environment.
 - The current default training configuration in [`run_training.py`](run_training.py) uses `2` agents and procedurally generated `10x10` maps with densities `0`, `0.1`, `0.2`, and `0.3` to keep iteration time manageable.
 - The current default footprint is L-shaped: `DEFAULT_AGENT_FOOTPRINT = ((0, 0), (0, 1), (1, 0))`, with the anchor/state point at `(0, 0)`.
+- The oriented action space now includes `WAIT`, `FORWARD`, `BACKWARD`, `ROTATE_LEFT`, `ROTATE_RIGHT`, `STRAFE_LEFT`, and `STRAFE_RIGHT`.
 - Phase 5 observation refactor is now implemented and smoke-validated under the `rl` conda environment with a 10 epoch PPO+QMIX CACTUS run.
 - Phase 6 action-mask and network I/O wiring is now implemented and smoke-validated under the `rl` conda environment with a 10 epoch PPO+QMIX CACTUS run.
 

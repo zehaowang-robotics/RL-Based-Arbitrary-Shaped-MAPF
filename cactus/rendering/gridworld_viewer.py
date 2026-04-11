@@ -32,38 +32,85 @@ class GridworldViewer:
     def agent_color(self, agent_id):
         nr_colors = len(AGENT_COLORS)
         return AGENT_COLORS[agent_id%nr_colors]
-              
+
     def draw_state(self, env):
         self.screen.fill(BLACK)
+        self.draw_grid(env)
+        self.draw_goal_footprints(env)
+        self.draw_agent_footprints(env)
+        pygame.display.flip()
+        self.clock.tick(self.fps)
+        return self.check_for_interrupt()
+
+    def draw_grid(self, env):
         for x in range(env.rows):
             for y in range(env.columns):
                 if not env.obstacle_map[x][y]:
                     self.draw_pixel(x, y, WHITE)
-                agent_id = env.occupied_goal_positions[x][y]
-                if agent_id >= 0:
-                    self.draw_pixel(x, y, self.agent_color(agent_id))
-                agent_id = env.current_position_map[x][y]
-                if agent_id >= 0:
-                    self.draw_circle(x, y, self.agent_color(agent_id))
-        pygame.display.flip()
-        self.clock.tick(self.fps)
-        return self.check_for_interrupt()
-    
-    def draw_pixel(self, x, y, color):
-        pygame.draw.rect(self.screen, color,
-                        pygame.Rect(
-                            x * self.cell_size+1,
-                            y * self.cell_size+1,
-                            self.cell_size-2,
-                            self.cell_size-2),
-                        0)
-    
-    def draw_circle(self, x, y, color):
+
+    def draw_goal_footprints(self, env):
+        if not hasattr(env, "goal_positions"):
+            return
+        goal_cells = env.occupied_cells_from_poses(env.goal_positions)
+        goal_anchors = env.anchor_positions(env.goal_positions)
+        for agent_id, cells in enumerate(goal_cells):
+            color = self.agent_color(agent_id)
+            for cell in cells.tolist():
+                self.draw_cell_outline(int(cell[0]), int(cell[1]), color, width=2)
+            anchor_x = int(goal_anchors[agent_id,0].item())
+            anchor_y = int(goal_anchors[agent_id,1].item())
+            self.draw_pixel(anchor_x, anchor_y, color, margin=3)
+
+    def draw_agent_footprints(self, env):
+        if not hasattr(env, "current_positions"):
+            return
+        occupied_cells = env.occupied_cells_from_poses(env.current_positions)
+        anchors = env.anchor_positions(env.current_positions)
+        headings = env.heading_deltas(env.pose_orientations(env.current_positions))
+        for agent_id, cells in enumerate(occupied_cells):
+            color = self.agent_color(agent_id)
+            for cell in cells.tolist():
+                self.draw_footprint_cell(int(cell[0]), int(cell[1]), color)
+            anchor_x = int(anchors[agent_id,0].item())
+            anchor_y = int(anchors[agent_id,1].item())
+            heading_x = int(headings[agent_id,0].item())
+            heading_y = int(headings[agent_id,1].item())
+            self.draw_anchor_marker(anchor_x, anchor_y)
+            self.draw_heading_marker(anchor_x, anchor_y, heading_x, heading_y)
+
+    def cell_rect(self, x, y, margin=1):
+        return pygame.Rect(
+            x * self.cell_size + margin,
+            y * self.cell_size + margin,
+            self.cell_size - 2 * margin,
+            self.cell_size - 2 * margin)
+
+    def draw_pixel(self, x, y, color, margin=1):
+        pygame.draw.rect(self.screen, color, self.cell_rect(x, y, margin), 0)
+
+    def draw_cell_outline(self, x, y, color, width=1):
+        pygame.draw.rect(self.screen, color, self.cell_rect(x, y, 1), width)
+
+    def draw_footprint_cell(self, x, y, color):
+        pygame.draw.rect(self.screen, BLACK, self.cell_rect(x, y, 0), 0)
+        pygame.draw.rect(self.screen, color, self.cell_rect(x, y, 2), 0)
+
+    def draw_anchor_marker(self, x, y):
+        radius = max(2, int(self.cell_size/4))
+        center = self.cell_center(x, y)
+        pygame.draw.circle(self.screen, BLACK, center, radius+1)
+        pygame.draw.circle(self.screen, WHITE, center, radius)
+
+    def draw_heading_marker(self, x, y, dx, dy):
+        start = self.cell_center(x, y)
+        scale = max(2, int(self.cell_size/2) - 1)
+        end = (start[0] + dx*scale, start[1] + dy*scale)
+        pygame.draw.line(self.screen, BLACK, start, end, 2)
+        pygame.draw.circle(self.screen, BLACK, end, max(2, int(self.cell_size/8)))
+
+    def cell_center(self, x, y):
         radius = int(self.cell_size/2)
-        center_x = x * self.cell_size + radius
-        center_y = y * self.cell_size + radius
-        center = (center_x, center_y)
-        pygame.draw.circle(self.screen, color, center, radius-2)
+        return (x * self.cell_size + radius, y * self.cell_size + radius)
 
     def check_for_interrupt(self):
         key_state = pygame.key.get_pressed()

@@ -178,6 +178,10 @@ class MAPFGridWorld(CollisionGridWorld):
             candidate_pose[:ENV_2D] += heading
         elif action == BACKWARD:
             candidate_pose[:ENV_2D] -= heading
+        elif action == STRAFE_LEFT:
+            candidate_pose[:ENV_2D] += self.left_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
+        elif action == STRAFE_RIGHT:
+            candidate_pose[:ENV_2D] += self.right_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
         elif action == ROTATE_LEFT:
             candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] + 1, self.nr_orientations)
         elif action == ROTATE_RIGHT:
