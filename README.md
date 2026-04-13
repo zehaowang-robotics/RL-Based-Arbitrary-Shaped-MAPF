@@ -1,4 +1,4 @@
-﻿# RL-Based Arbitrary-Shaped Multi-Agent Path Finding
+# RL-Based Arbitrary-Shaped Multi-Agent Path Finding
 
 This repository is based on `rl4mapf` and is being extended toward arbitrary-shaped, multi-cell MAPF agents with rotation.
 
@@ -8,26 +8,29 @@ This repository is based on `rl4mapf` and is being extended toward arbitrary-sha
 
 ## Refactor Progress
 
-| 状态 | 阶段 | 目标 | 主要改动文件 | 产出 | 预计 |
+| Status | Phase | Goal | Main Files | Deliverable | Estimate |
 | --- | --- | --- | --- | --- | --- |
-| 已完成 | 1 | 冻结建模规格 | 新增配置，整理常量 | 确定 `theta`、动作集合、`footprint` 格式、`goal` 是否含朝向 | 0.5 天 |
-| 已完成 | 2 | 重构状态表示 | [`gridworld.py`](cactus/env/gridworld.py) | `current_positions/goal_positions` 从 2D 点扩成 pose；新增 `footprint` 变换函数 | 1 天 |
-| 已完成 | 3 | 重写转移与碰撞 | [`gridworld.py`](cactus/env/gridworld.py), [`collision_gridworld.py`](cactus/env/collision_gridworld.py) | 支持旋转动作、`footprint` 占用、多格碰撞、边交换判定 | 2 天 |
-| 已完成（50 epoch smoke） | 4 | 重写 reset / 目标采样 / curriculum 半径 | [`gridworld.py`](cactus/env/gridworld.py), [`curriculum.py`](cactus/curriculum.py) | 生成不重叠初始 pose；`init_goal_radius` 改为基于 anchor 或 swept area 的采样 | 1 天 |
-| 已完成（10 epoch smoke） | 5 | 重写观测编码 | [`mapf_gridworld.py`](cactus/env/mapf_gridworld.py) | 观测里加入朝向、`footprint` 占用、可旋转性/可前进性信息 | 1.5 天 |
-| 已完成（10 epoch smoke） | 6 | 调整动作 mask 与网络输入输出 | [`a2c_controller.py`](cactus/controller/a2c_controller.py), [`constants.py`](cactus/constants.py) | 新动作空间、非法动作 mask、可能的 observation channel 变更 | 1 天 |
-| 已完成（50 epoch smoke） | 7 | 跑通训练与评估 | [`run_training.py`](run_training.py), [`eval.py`](eval.py) | 至少 PPO+QMIX 跑通一个小规模实验 | 1 天 |
-| 未完成 | 8 | 单元测试与回归测试 | 新增 `tests`，覆盖环境逻辑 | 测试碰撞、旋转、goal 达成、非法动作、观测一致性 | 1.5 天 |
+| Completed | 1 | Freeze the modeling specification | New configuration keys and constants cleanup | Define `theta`, the action set, the `footprint` format, and whether goals include orientation | 0.5 days |
+| Completed | 2 | Refactor the state representation | [`gridworld.py`](cactus/env/gridworld.py) | Extend `current_positions` and `goal_positions` from 2D points to poses; add footprint transformation helpers | 1 day |
+| Completed | 3 | Rewrite transitions and collisions | [`gridworld.py`](cactus/env/gridworld.py), [`collision_gridworld.py`](cactus/env/collision_gridworld.py) | Support rotation actions, footprint occupancy, multi-cell collisions, swept rotation collision checks, and generalized edge swaps | 2 days |
+| Completed (50-epoch smoke) | 4 | Rewrite reset, goal sampling, and curriculum radius | [`gridworld.py`](cactus/env/gridworld.py), [`curriculum.py`](cactus/curriculum.py) | Generate non-overlapping initial poses; support `init_goal_radius` based on anchor distance or swept-area distance | 1 day |
+| Completed (10-epoch smoke) | 5 | Rewrite observation encoding | [`mapf_gridworld.py`](cactus/env/mapf_gridworld.py) | Add orientation, footprint occupancy, and action-feasibility information to observations | 1.5 days |
+| Completed (10-epoch smoke) | 6 | Adjust action masks and network I/O | [`a2c_controller.py`](cactus/controller/a2c_controller.py), [`constants.py`](cactus/constants.py) | Wire the oriented action space, invalid-action masks, and observation-channel changes into the controller | 1 day |
+| Completed (50-epoch smoke) | 7 | Run training and evaluation | [`run_training.py`](run_training.py), [`eval.py`](eval.py) | Run at least one small-scale PPO+QMIX experiment successfully | 1 day |
+| Not started | 8 | Add unit and regression tests | New `tests` coverage for environment logic | Test collisions, rotations, goal completion, invalid actions, and observation consistency | 1.5 days |
 
 Notes:
 
-- Phase 4 reset/curriculum refactor is now implemented and smoke-validated.
+- Phase 4 reset and curriculum refactor is implemented and smoke-validated.
+- Phase 5 observation refactor is implemented and smoke-validated under the `rl` conda environment with a 10-epoch PPO+QMIX CACTUS run.
+- Phase 6 action-mask and network I/O wiring is implemented and smoke-validated under the `rl` conda environment with a 10-epoch PPO+QMIX CACTUS run.
 - Phase 7 currently means a small PPO+QMIX smoke validation completed under the `rl` conda environment.
-- The current default training configuration in [`run_training.py`](run_training.py) uses `2` agents and procedurally generated `10x10` maps with densities `0`, `0.1`, `0.2`, and `0.3` to keep iteration time manageable.
+- The current default training configuration in [`run_training.py`](run_training.py) uses `1` agent.
+- Training maps are procedurally generated at sizes `10x10`, `20x20`, `40x40`, and `80x80`, with obstacle densities `0`, `0.1`, `0.2`, and `0.3`.
+- The default training entry point currently runs PPO+QMIX with the CACTUS curriculum only; the other algorithm runs are left commented out in [`run_training.py`](run_training.py).
 - The current default footprint is L-shaped: `DEFAULT_AGENT_FOOTPRINT = ((0, 0), (0, 1), (1, 0))`, with the anchor/state point at `(0, 0)`.
-- The oriented action space now includes `WAIT`, `FORWARD`, `BACKWARD`, `ROTATE_LEFT`, `ROTATE_RIGHT`, `STRAFE_LEFT`, and `STRAFE_RIGHT`.
-- Phase 5 observation refactor is now implemented and smoke-validated under the `rl` conda environment with a 10 epoch PPO+QMIX CACTUS run.
-- Phase 6 action-mask and network I/O wiring is now implemented and smoke-validated under the `rl` conda environment with a 10 epoch PPO+QMIX CACTUS run.
+- The oriented action space includes `WAIT`, `FORWARD`, `BACKWARD`, `ROTATE_LEFT`, `ROTATE_RIGHT`, `STRAFE_LEFT`, and `STRAFE_RIGHT`.
+- Rotation collision checks use the grid cells swept by the footprint during the quarter-turn, not only the cells occupied before and after rotation.
 
 ## Design Notes
 
@@ -42,17 +45,17 @@ cd instances
 mkdir primal_test_envs
 ```
 
-### Training maps
+### Training Maps
 
 Training maps are generated for each training run in `run_training.py` using `cactus.env.env_generator`.
 
 Current defaults:
 
-- map size: `10x10`
+- map sizes: `10x10`, `20x20`, `40x40`, `80x80`
 - densities: `0`, `0.1`, `0.2`, `0.3`
-- number of agents: `2`
+- number of agents: `1`
 
-### Test maps
+### Test Maps
 
 Go to the Google Drive referenced by the PRIMAL GitHub repository. Download the archive with all PRIMAL test maps [2] and unpack it in `instances/primal_test_envs`.
 
@@ -60,17 +63,17 @@ Go to the Google Drive referenced by the PRIMAL GitHub repository. Download the 
 
 ### Training
 
-Run training of all MARL algorithms in the paper with:
+Run the default training configuration with:
 
 ```bash
 python run_training.py
 ```
 
-The command creates a folder under `output/` with named result folders per MARL algorithm.
+The command creates a folder under `output/` with named result folders per MARL algorithm and curriculum setting.
 
 ### Test
 
-Run evaluation with (`filename` specifies the result folder with `actor.pth`):
+Run evaluation with `filename` specifying the result folder that contains `actor.pth`:
 
 ```bash
 python eval.py <filename> <map_size> <density>
