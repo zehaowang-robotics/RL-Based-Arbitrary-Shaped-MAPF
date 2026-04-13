@@ -8,6 +8,7 @@ from cactus.constants import *
 nr_episodes = 1
 params = {}
 params[ENV_OBSERVATION_SIZE] = 7
+params[ENV_ACTION_SPACE] = ACTION_SPACE_CARDINAL # ACTION_SPACE_ORIENTED
 params[ENV_NR_AGENTS] = 1
 params[SAMPLE_NR_AGENTS] = params[ENV_NR_AGENTS]
 params[HIDDEN_LAYER_DIM] = 64
