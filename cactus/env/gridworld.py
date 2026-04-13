@@ -5,6 +5,7 @@ from cactus.rendering.gridworld_viewer import render
 import torch
 import random
 import heapq
+import math
 
 """
  Represents a 2D grid world
@@ -57,6 +58,7 @@ class GridWorld(Environment):
             self.relative_footprint_bounds[theta] = bounds
             self.max_footprint_padding_x = max(self.max_footprint_padding_x, abs(bounds[0]), abs(bounds[1]))
             self.max_footprint_padding_y = max(self.max_footprint_padding_y, abs(bounds[2]), abs(bounds[3]))
+        self.rotation_swept_footprints = self.get_rotation_swept_footprints()
         self.valid_pose_orientations = self.get_valid_pose_orientations()
         self.valid_anchor_positions = list(self.valid_pose_orientations.keys())
         self.shortest_distance_maps = {}
@@ -161,6 +163,133 @@ class GridWorld(Environment):
         transformed = [self.rotate_offset(offset, theta) for offset in footprint]
         return self.as_int_tensor(transformed).view(-1, ENV_2D)
 
+    def rotated_cell_polygon(self, offset, angle):
+        dx, dy = int(offset[0]), int(offset[1])
+        cos_angle = math.cos(angle)
+        sin_angle = math.sin(angle)
+        polygon = []
+        for x, y in (
+            (dx - 0.5, dy - 0.5),
+            (dx + 0.5, dy - 0.5),
+            (dx + 0.5, dy + 0.5),
+            (dx - 0.5, dy + 0.5),
+        ):
+            polygon.append((
+                x * cos_angle - y * sin_angle,
+                x * sin_angle + y * cos_angle,
+            ))
+        return polygon
+
+    def polygon_area(self, polygon):
+        if len(polygon) < 3:
+            return 0.0
+        area = 0.0
+        for index, point in enumerate(polygon):
+            next_point = polygon[(index + 1) % len(polygon)]
+            area += point[0] * next_point[1] - next_point[0] * point[1]
+        return abs(area) * 0.5
+
+    def clip_polygon_half_plane(self, polygon, inside, intersection):
+        if not polygon:
+            return []
+        clipped = []
+        previous = polygon[-1]
+        previous_inside = inside(previous)
+        for current in polygon:
+            current_inside = inside(current)
+            if current_inside:
+                if not previous_inside:
+                    clipped.append(intersection(previous, current))
+                clipped.append(current)
+            elif previous_inside:
+                clipped.append(intersection(previous, current))
+            previous = current
+            previous_inside = current_inside
+        return clipped
+
+    def clip_polygon_to_cell(self, polygon, cell):
+        x, y = int(cell[0]), int(cell[1])
+        left = x - 0.5
+        right = x + 0.5
+        bottom = y - 0.5
+        top = y + 0.5
+        eps = 1e-12
+        clipped = polygon
+        clipped = self.clip_polygon_half_plane(
+            clipped,
+            lambda point: point[0] >= left - eps,
+            lambda start, end: (
+                left,
+                start[1] + (end[1] - start[1]) * (left - start[0]) / (end[0] - start[0]),
+            )
+        )
+        clipped = self.clip_polygon_half_plane(
+            clipped,
+            lambda point: point[0] <= right + eps,
+            lambda start, end: (
+                right,
+                start[1] + (end[1] - start[1]) * (right - start[0]) / (end[0] - start[0]),
+            )
+        )
+        clipped = self.clip_polygon_half_plane(
+            clipped,
+            lambda point: point[1] >= bottom - eps,
+            lambda start, end: (
+                start[0] + (end[0] - start[0]) * (bottom - start[1]) / (end[1] - start[1]),
+                bottom,
+            )
+        )
+        clipped = self.clip_polygon_half_plane(
+            clipped,
+            lambda point: point[1] <= top + eps,
+            lambda start, end: (
+                start[0] + (end[0] - start[0]) * (top - start[1]) / (end[1] - start[1]),
+                top,
+            )
+        )
+        return clipped
+
+    def cells_overlapping_polygon(self, polygon):
+        min_x = min(point[0] for point in polygon)
+        max_x = max(point[0] for point in polygon)
+        min_y = min(point[1] for point in polygon)
+        max_y = max(point[1] for point in polygon)
+        eps = 1e-9
+        min_cell_x = math.floor(min_x + 0.5 + eps)
+        max_cell_x = math.ceil(max_x - 0.5 - eps)
+        min_cell_y = math.floor(min_y + 0.5 + eps)
+        max_cell_y = math.ceil(max_y - 0.5 - eps)
+        cells = []
+        for x in range(min_cell_x, max_cell_x + 1):
+            for y in range(min_cell_y, max_cell_y + 1):
+                clipped = self.clip_polygon_to_cell(polygon, (x, y))
+                if self.polygon_area(clipped) > eps:
+                    cells.append((x, y))
+        return cells
+
+    def compute_rotation_swept_footprint(self, start_theta, rotation_direction):
+        swept_offsets = set()
+        steps = 90
+        start_angle = int(start_theta) * math.pi / 2.0
+        for step in range(steps + 1):
+            angle = start_angle + int(rotation_direction) * (math.pi / 2.0) * step / steps
+            for offset in self.agent_footprint:
+                polygon = self.rotated_cell_polygon(offset, angle)
+                swept_offsets.update(self.cells_overlapping_polygon(polygon))
+        end_theta = (int(start_theta) + int(rotation_direction)) % self.nr_orientations
+        swept_offsets.update(tuple(cell) for cell in self.transformed_footprint(start_theta).tolist())
+        swept_offsets.update(tuple(cell) for cell in self.transformed_footprint(end_theta).tolist())
+        return self.as_int_tensor(sorted(swept_offsets)).view(-1, ENV_2D)
+
+    def get_rotation_swept_footprints(self):
+        swept_footprints = {}
+        for theta in range(self.nr_orientations):
+            left_theta = (theta + 1) % self.nr_orientations
+            right_theta = (theta - 1) % self.nr_orientations
+            swept_footprints[(theta, left_theta)] = self.compute_rotation_swept_footprint(theta, 1)
+            swept_footprints[(theta, right_theta)] = self.compute_rotation_swept_footprint(theta, -1)
+        return swept_footprints
+
     def occupied_cells_from_pose(self, pose, footprint=None):
         pose_tensor = self.as_pose(pose)
         footprint_offsets = self.transformed_footprint(pose_tensor[ENV_2D].item(), footprint)
@@ -173,6 +302,36 @@ class GridWorld(Environment):
 
     def pose_cells_as_tuples(self, pose, footprint=None):
         return tuple((int(cell[0]), int(cell[1])) for cell in self.occupied_cells_from_pose(pose, footprint).tolist())
+
+    def is_rotation_transition(self, source_pose, target_pose):
+        source_pose = self.as_pose(source_pose)
+        target_pose = self.as_pose(target_pose)
+        if not torch.equal(source_pose[:ENV_2D], target_pose[:ENV_2D]):
+            return False
+        orientation_delta = int(torch.remainder(target_pose[ENV_2D] - source_pose[ENV_2D], self.nr_orientations).item())
+        return orientation_delta == 1 or orientation_delta == self.nr_orientations - 1
+
+    def transition_cells_from_pose(self, source_pose, target_pose):
+        source_pose = self.as_pose(source_pose)
+        target_pose = self.as_pose(target_pose)
+        if self.is_rotation_transition(source_pose, target_pose):
+            key = (int(source_pose[ENV_2D].item()), int(target_pose[ENV_2D].item()))
+            footprint_offsets = self.rotation_swept_footprints[key]
+            return footprint_offsets + source_pose[:ENV_2D].view(1, ENV_2D)
+        return self.occupied_cells_from_pose(target_pose)
+
+    def transition_cells_from_poses(self, source_poses, target_poses):
+        source_batch = self.as_pose_batch(source_poses)
+        target_batch = self.as_pose_batch(target_poses)
+        return [
+            self.transition_cells_from_pose(source_pose, target_pose)
+            for source_pose, target_pose in zip(source_batch, target_batch)
+        ]
+
+    def cells_are_valid(self, cells):
+        x = cells[:,0]
+        y = cells[:,1]
+        return bool(self.xy_position_in_bounds(x, y).all().item())
 
     def compute_relative_footprint_bounds(self, theta, footprint=None):
         footprint_offsets = self.transformed_footprint(theta, footprint)
@@ -193,9 +352,7 @@ class GridWorld(Environment):
 
     def pose_is_valid(self, pose, footprint=None):
         occupied_cells = self.occupied_cells_from_pose(pose, footprint)
-        x = occupied_cells[:,0]
-        y = occupied_cells[:,1]
-        return bool(self.xy_position_in_bounds(x, y).all().item())
+        return self.cells_are_valid(occupied_cells)
 
     def get_valid_pose_orientations(self):
         valid_pose_orientations = {}
@@ -466,8 +623,12 @@ class GridWorld(Environment):
         valid_cells = self.xy_position_in_bounds(x, y).view(self.nr_agents, -1)
         return valid_cells.all(-1)
 
+    def transition_in_bounds(self, new_positions):
+        transition_cells = self.transition_cells_from_poses(self.current_positions, new_positions)
+        return self.as_bool_tensor([self.cells_are_valid(cells) for cells in transition_cells])
+
     def move_condition(self, new_positions):
-        in_bounds = self.position_in_bounds(new_positions)
+        in_bounds = self.transition_in_bounds(new_positions)
         return in_bounds.unsqueeze(1).expand_as(new_positions), (self.bool_zeros(self.nr_agents), self.bool_zeros(self.nr_agents))
 
     def move_to(self, new_positions):

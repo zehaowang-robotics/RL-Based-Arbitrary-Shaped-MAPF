@@ -188,10 +188,10 @@ class MAPFGridWorld(CollisionGridWorld):
             candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] - 1, self.nr_orientations)
         else:
             raise ValueError(f"Unknown oriented action: {action}")
-        if not self.pose_is_valid(candidate_pose):
+        transition_cells = self.transition_cells_from_pose(self.current_positions[agent_id], candidate_pose)
+        if not self.cells_are_valid(transition_cells):
             return False
-        candidate_cells = self.occupied_cells_from_pose(candidate_pose)
-        occupant_ids = self.current_position_map[candidate_cells[:,0], candidate_cells[:,1]]
+        occupant_ids = self.current_position_map[transition_cells[:,0], transition_cells[:,1]]
         overlaps_other_agent = torch.logical_and(occupant_ids >= 0, occupant_ids != agent_id).any()
         return not overlaps_other_agent.item()
 

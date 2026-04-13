@@ -80,7 +80,8 @@ Rationale:
 - `FORWARD` and `BACKWARD` move the anchor by one grid cell along the agent heading.
 - `STRAFE_LEFT` and `STRAFE_RIGHT` move the anchor by one grid cell perpendicular to the heading without changing orientation.
 - `ROTATE_LEFT` and `ROTATE_RIGHT` rotate the footprint in place around the anchor.
-- A transition is valid only if every occupied cell after the action is in bounds, obstacle free, and collision free.
+- A rotation transition is valid only if every grid cell swept by the footprint during the quarter-turn is in bounds, obstacle free, and collision free.
+- A non-rotation transition remains valid only if every occupied cell after the action is in bounds, obstacle free, and collision free.
 
 ### 6. Occupancy model
 

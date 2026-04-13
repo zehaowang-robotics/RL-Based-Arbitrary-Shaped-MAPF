@@ -20,9 +20,10 @@ class CollisionGridWorld(GridWorld):
         candidate_positions = torch.where(condition.unsqueeze(1), new_positions, self.current_positions)
         source_cells = self.populate_position_map(self.current_position_map, self.current_positions)
         target_cells = self.populate_position_map(self.next_position_map, candidate_positions)
+        collision_cells = self.transition_cells_from_poses(self.current_positions, candidate_positions)
 
         cell_to_agents = {}
-        for agent_id, cells in enumerate(target_cells):
+        for agent_id, cells in enumerate(collision_cells):
             for cell in cells.tolist():
                 key = (int(cell[0]), int(cell[1]))
                 cell_to_agents.setdefault(key, []).append(agent_id)
