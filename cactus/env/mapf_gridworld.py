@@ -11,8 +11,10 @@ class MAPFGridWorld(CollisionGridWorld):
     def __init__(self, params) -> None:
         assertContains(params, ENV_OBSERVATION_SIZE)
         nr_orientations = params[ENV_NR_ORIENTATIONS] if ENV_NR_ORIENTATIONS in params else DEFAULT_NR_ORIENTATIONS
+        action_space = self.resolve_action_space(params)
+        actions = self.actions_for_action_space(action_space)
         legacy_channels = MAPF_LEGACY_OBSERVATION_CHANNELS
-        self.nr_channels = legacy_channels + 2 * nr_orientations + 2 + NR_ORIENTED_GRID_ACTIONS
+        self.nr_channels = legacy_channels + 2 * nr_orientations + 2 + len(actions)
         self.observation_size = params["observation_size"]
         params[ENV_OBSERVATION_DIM] = [self.nr_channels, self.observation_size, self.observation_size]
         super(MAPFGridWorld, self).__init__(params)
@@ -157,37 +159,22 @@ class MAPFGridWorld(CollisionGridWorld):
 
     def add_action_feasibility_channels(self, obs):
         action_feasibility = self.get_action_feasibility()
-        for action_index, _ in enumerate(ORIENTED_GRID_ACTIONS):
+        for action_index, _ in enumerate(self.actions):
             channel = self.action_feasibility_channel + action_index
             feasibility = action_feasibility[:,action_index].view(self.nr_agents, 1, 1)
             obs[:,channel,:,:] = feasibility.expand(-1, self.observation_size, self.observation_size)
 
     def get_action_feasibility(self):
-        action_feasibility = self.float_zeros((self.nr_agents, NR_ORIENTED_GRID_ACTIONS))
+        action_feasibility = self.float_zeros((self.nr_agents, self.nr_actions))
         for agent_id in range(self.nr_agents):
-            for action_index, action in enumerate(ORIENTED_GRID_ACTIONS):
+            for action_index, action in enumerate(self.actions):
                 action_feasibility[agent_id,action_index] = 1.0 if self.action_is_feasible(agent_id, action) else 0.0
         return action_feasibility
 
     def action_is_feasible(self, agent_id, action):
         if action == WAIT:
             return True
-        candidate_pose = self.current_positions[agent_id].clone()
-        heading = self.orientation_deltas[candidate_pose[ENV_2D]]
-        if action == FORWARD:
-            candidate_pose[:ENV_2D] += heading
-        elif action == BACKWARD:
-            candidate_pose[:ENV_2D] -= heading
-        elif action == STRAFE_LEFT:
-            candidate_pose[:ENV_2D] += self.left_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
-        elif action == STRAFE_RIGHT:
-            candidate_pose[:ENV_2D] += self.right_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
-        elif action == ROTATE_LEFT:
-            candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] + 1, self.nr_orientations)
-        elif action == ROTATE_RIGHT:
-            candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] - 1, self.nr_orientations)
-        else:
-            raise ValueError(f"Unknown oriented action: {action}")
+        candidate_pose = self.pose_after_action(self.current_positions[agent_id], action)
         transition_cells = self.transition_cells_from_pose(self.current_positions[agent_id], candidate_pose)
         if not self.cells_are_valid(transition_cells):
             return False

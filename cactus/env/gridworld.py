@@ -12,10 +12,42 @@ import math
 """
 class GridWorld(Environment):
 
+    def resolve_action_space(self, params):
+        action_space = get_param_or_default(params, ENV_ACTION_SPACE, None)
+        nr_actions = get_param_or_default(params, ENV_NR_ACTIONS, None)
+        if action_space is None:
+            if nr_actions is None:
+                return DEFAULT_ACTION_SPACE
+            return self.action_space_from_nr_actions(int(nr_actions))
+        if action_space == NR_GRID_ACTIONS or str(action_space).lower() in (ACTION_SPACE_CARDINAL, "grid", str(NR_GRID_ACTIONS)):
+            return ACTION_SPACE_CARDINAL
+        if action_space == NR_ORIENTED_GRID_ACTIONS or str(action_space).lower() in (ACTION_SPACE_ORIENTED, str(NR_ORIENTED_GRID_ACTIONS)):
+            return ACTION_SPACE_ORIENTED
+        raise ValueError(f"Unsupported action space: {action_space}")
+
+    def action_space_from_nr_actions(self, nr_actions):
+        if nr_actions == NR_GRID_ACTIONS:
+            return ACTION_SPACE_CARDINAL
+        if nr_actions == NR_ORIENTED_GRID_ACTIONS:
+            return ACTION_SPACE_ORIENTED
+        raise ValueError(f"Unsupported action count: {nr_actions}. Use {NR_GRID_ACTIONS} or {NR_ORIENTED_GRID_ACTIONS}.")
+
+    def actions_for_action_space(self, action_space):
+        if action_space == ACTION_SPACE_CARDINAL:
+            return tuple(GRID_ACTIONS)
+        if action_space == ACTION_SPACE_ORIENTED:
+            return tuple(ORIENTED_GRID_ACTIONS)
+        raise ValueError(f"Unsupported action space: {action_space}")
+
     def __init__(self, params) -> None:
-        params[ENV_NR_ACTIONS] = NR_ORIENTED_GRID_ACTIONS
+        action_space = self.resolve_action_space(params)
+        actions = self.actions_for_action_space(action_space)
+        params[ENV_ACTION_SPACE] = action_space
+        params[ENV_NR_ACTIONS] = len(actions)
         assertContains(params, ENV_OBSTACLES)
         super(GridWorld, self).__init__(params)
+        self.action_space = action_space
+        self.actions = actions
         self.makespan_mode = get_param_or_default(params, ENV_MAKESPAN_MODE, False)
         self.obstacle_map = self.as_bool_tensor(params[ENV_OBSTACLES])
         self.rows = self.obstacle_map.size(0)
@@ -540,8 +572,43 @@ class GridWorld(Environment):
     def right_heading_deltas(self, orientations):
         return -self.left_heading_deltas(orientations)
 
+    def pose_after_action(self, pose, action):
+        action = int(action)
+        candidate_pose = pose.clone()
+        if action == WAIT:
+            return candidate_pose
+        if self.action_space == ACTION_SPACE_CARDINAL:
+            if action not in GRID_ACTIONS:
+                raise ValueError(f"Unknown cardinal action: {action}")
+            candidate_pose[:ENV_2D] += self.grid_operations[action]
+            return candidate_pose
+        if self.action_space != ACTION_SPACE_ORIENTED:
+            raise ValueError(f"Unsupported action space: {self.action_space}")
+        heading = self.orientation_deltas[candidate_pose[ENV_2D]]
+        if action == FORWARD:
+            candidate_pose[:ENV_2D] += heading
+        elif action == BACKWARD:
+            candidate_pose[:ENV_2D] -= heading
+        elif action == STRAFE_LEFT:
+            candidate_pose[:ENV_2D] += self.left_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
+        elif action == STRAFE_RIGHT:
+            candidate_pose[:ENV_2D] += self.right_heading_deltas(candidate_pose[ENV_2D].view(1))[0]
+        elif action == ROTATE_LEFT:
+            candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] + 1, self.nr_orientations)
+        elif action == ROTATE_RIGHT:
+            candidate_pose[ENV_2D] = torch.remainder(candidate_pose[ENV_2D] - 1, self.nr_orientations)
+        else:
+            raise ValueError(f"Unknown oriented action: {action}")
+        return candidate_pose
+
     def transition_poses(self, joint_action):
         next_positions = self.current_positions.clone()
+        if self.action_space == ACTION_SPACE_CARDINAL:
+            valid_actions = torch.logical_and(joint_action >= 0, joint_action < NR_GRID_ACTIONS)
+            if not valid_actions.all().item():
+                raise ValueError(f"Cardinal action space expects action ids from 0 to {NR_GRID_ACTIONS - 1}")
+            next_positions[:, :ENV_2D] += self.grid_operations[joint_action]
+            return next_positions
         orientations = self.pose_orientations(self.current_positions)
         headings = self.heading_deltas(orientations)
         left_headings = self.left_heading_deltas(orientations)

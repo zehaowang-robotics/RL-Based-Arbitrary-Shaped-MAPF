@@ -57,7 +57,9 @@ Example 2x1 body:
 
 ### 4. Action set
 
-The oriented action space is:
+The action space is configurable through `ENV_ACTION_SPACE` or, for compatibility, through `ENV_NR_ACTIONS`.
+
+The default `ACTION_SPACE_ORIENTED` action space exposes seven actions:
 
 - `WAIT`
 - `FORWARD`
@@ -67,13 +69,21 @@ The oriented action space is:
 - `STRAFE_LEFT`
 - `STRAFE_RIGHT`
 
-The strafe actions translate the anchor one cell left or right relative to the current heading without changing orientation.
+The optional `ACTION_SPACE_CARDINAL` action space exposes five actions:
+
+- `WAIT`
+- `NORTH`
+- `SOUTH`
+- `WEST`
+- `EAST`
+
+The strafe actions translate the anchor one cell left or right relative to the current heading without changing orientation. Cardinal actions translate the anchor in absolute grid directions and do not change orientation.
 
 Rationale:
 
-- It supports forward/backward movement while still allowing lateral repositioning.
-- It keeps rotation as a separate in-place action.
-- It exposes a fixed action count of 7 to the policy and action mask.
+- The oriented action space supports forward/backward movement while still allowing lateral repositioning and in-place rotation.
+- The cardinal action space supports a 5-action no-rotation baseline while preserving the pose and footprint model.
+- The selected action count is exposed consistently to the policy, observation shape, and action mask.
 
 ### 5. Motion semantics
 
@@ -140,6 +150,9 @@ The following constants are now reserved for the implementation work:
 - `ENV_NR_ORIENTATIONS`
 - `ENV_AGENT_FOOTPRINT`
 - `ENV_GOAL_ORIENTATION_REQUIRED`
+- `ENV_ACTION_SPACE`
+- `ACTION_SPACE_CARDINAL`
+- `ACTION_SPACE_ORIENTED`
 - `CURRICULUM_RADIUS_MODE`
 - `CURRICULUM_RADIUS_ANCHOR_CHEBYSHEV`
 

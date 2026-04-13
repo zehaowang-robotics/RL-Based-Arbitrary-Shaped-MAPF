@@ -15,7 +15,7 @@ This repository is based on `rl4mapf` and is being extended toward arbitrary-sha
 | Completed | 3 | Rewrite transitions and collisions | [`gridworld.py`](cactus/env/gridworld.py), [`collision_gridworld.py`](cactus/env/collision_gridworld.py) | Support rotation actions, footprint occupancy, multi-cell collisions, swept rotation collision checks, and generalized edge swaps | 2 days |
 | Completed (50-epoch smoke) | 4 | Rewrite reset, goal sampling, and curriculum radius | [`gridworld.py`](cactus/env/gridworld.py), [`curriculum.py`](cactus/curriculum.py) | Generate non-overlapping initial poses; support `init_goal_radius` based on anchor distance or swept-area distance | 1 day |
 | Completed (10-epoch smoke) | 5 | Rewrite observation encoding | [`mapf_gridworld.py`](cactus/env/mapf_gridworld.py) | Add orientation, footprint occupancy, and action-feasibility information to observations | 1.5 days |
-| Completed (10-epoch smoke) | 6 | Adjust action masks and network I/O | [`a2c_controller.py`](cactus/controller/a2c_controller.py), [`constants.py`](cactus/constants.py) | Wire the oriented action space, invalid-action masks, and observation-channel changes into the controller | 1 day |
+| Completed (10-epoch smoke) | 6 | Adjust action masks and network I/O | [`a2c_controller.py`](cactus/controller/a2c_controller.py), [`constants.py`](cactus/constants.py) | Wire configurable 5-action or 7-action spaces, invalid-action masks, and observation-channel changes into the controller | 1 day |
 | Completed (50-epoch smoke) | 7 | Run training and evaluation | [`run_training.py`](run_training.py), [`eval.py`](eval.py) | Run at least one small-scale PPO+QMIX experiment successfully | 1 day |
 | Not started | 8 | Add unit and regression tests | New `tests` coverage for environment logic | Test collisions, rotations, goal completion, invalid actions, and observation consistency | 1.5 days |
 
@@ -29,7 +29,9 @@ Notes:
 - Training maps are procedurally generated at sizes `10x10`, `20x20`, `40x40`, and `80x80`, with obstacle densities `0`, `0.1`, `0.2`, and `0.3`.
 - The default training entry point currently runs PPO+QMIX with the CACTUS curriculum only; the other algorithm runs are left commented out in [`run_training.py`](run_training.py).
 - The current default footprint is L-shaped: `DEFAULT_AGENT_FOOTPRINT = ((0, 0), (0, 1), (1, 0))`, with the anchor/state point at `(0, 0)`.
-- The oriented action space includes `WAIT`, `FORWARD`, `BACKWARD`, `ROTATE_LEFT`, `ROTATE_RIGHT`, `STRAFE_LEFT`, and `STRAFE_RIGHT`.
+- The default oriented action space includes `WAIT`, `FORWARD`, `BACKWARD`, `ROTATE_LEFT`, `ROTATE_RIGHT`, `STRAFE_LEFT`, and `STRAFE_RIGHT`.
+- Set `params[ENV_ACTION_SPACE] = ACTION_SPACE_CARDINAL` or `params[ENV_NR_ACTIONS] = NR_GRID_ACTIONS` to use the 5-action `WAIT/NORTH/SOUTH/WEST/EAST` baseline.
+- Set `params[ENV_ACTION_SPACE] = ACTION_SPACE_ORIENTED` or `params[ENV_NR_ACTIONS] = NR_ORIENTED_GRID_ACTIONS` to use the 7-action oriented space.
 - Rotation collision checks use the grid cells swept by the footprint during the quarter-turn, not only the cells occupied before and after rotation.
 
 ## Design Notes

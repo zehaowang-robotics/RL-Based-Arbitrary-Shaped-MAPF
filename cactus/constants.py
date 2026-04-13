@@ -7,6 +7,7 @@ INTEGER_MAX_VALUE = 2147483647
 ENV_TIME_LIMIT = "time_limit"
 ENV_NR_AGENTS = "nr_agents"
 ENV_NR_ACTIONS = "nr_actions"
+ENV_ACTION_SPACE = "action_space"
 ENV_OBSERVATION_DIM = "observation_dim" # Array of dimension indicating the shape [C,K,K] of a grid observation
 ENV_OBSERVATION_SIZE = "observation_size" # Indicates the length K of a KxK grid observation
 ENV_GAMMA = "gamma"
@@ -64,6 +65,10 @@ STRAFE_LEFT = 5
 STRAFE_RIGHT = 6
 ORIENTED_GRID_ACTIONS = [WAIT, FORWARD, BACKWARD, ROTATE_LEFT, ROTATE_RIGHT, STRAFE_LEFT, STRAFE_RIGHT]
 NR_ORIENTED_GRID_ACTIONS = len(ORIENTED_GRID_ACTIONS)
+
+ACTION_SPACE_CARDINAL = "cardinal"
+ACTION_SPACE_ORIENTED = "oriented"
+DEFAULT_ACTION_SPACE = ACTION_SPACE_ORIENTED
 
 # MAPF observation channel layout
 MAPF_GOAL_DIRECTION_CHANNEL = 0
