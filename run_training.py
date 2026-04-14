@@ -9,7 +9,7 @@ nr_episodes = 1
 params = {}
 params[ENV_OBSERVATION_SIZE] = 7
 params[ENV_ACTION_SPACE] = ACTION_SPACE_CARDINAL # ACTION_SPACE_ORIENTED
-params[ENV_NR_AGENTS] = 1
+params[ENV_NR_AGENTS] = 2
 params[SAMPLE_NR_AGENTS] = params[ENV_NR_AGENTS]
 params[HIDDEN_LAYER_DIM] = 64
 params[NUMBER_OF_EPOCHS] = 5000
@@ -25,6 +25,9 @@ params[GRAD_NORM_CLIP] = 10
 params[VDN_MODE] = False
 params[REWARD_SHARING] = False
 params[MIXING_HIDDEN_SIZE] = 128
+# params[ENV_AGENT_FOOTPRINT] = ((0, 0),)
+# params[TEST_INIT_GOAL_RADIUS] = 2
+# params[ENV_COLLISION_WEIGHT] = 1
 
 def run(algorithm_name, curriculum_name):
     params[ALGORITHM_NAME] = algorithm_name

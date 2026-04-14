@@ -44,10 +44,11 @@ def load_obstacles(filename):
 
 def generate_training_maps(params):
     envs = []
-    for size in [10, 20, 40, 80]:
-        for density in [0]:
-            env,_ = env_generator.generate_mapf_gridworld(params[ENV_NR_AGENTS], size, density, params)
-            envs.append(env)
+    for _ in range(16):
+        for size in [10, 20, 40, 80]:
+            for density in [0]:
+                env,_ = env_generator.generate_mapf_gridworld(params[ENV_NR_AGENTS], size, density, params)
+                envs.append(env)
     return envs
 
 def make_test_map(params):

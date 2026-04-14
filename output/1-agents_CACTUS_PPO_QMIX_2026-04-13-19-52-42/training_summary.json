@@ -1,0 +1,21 @@
+{
+  "result_file": "output\\1-agents_CACTUS_PPO_QMIX_2026-04-13-19-52-42\\results_3000.json",
+  "points": 61,
+  "final_epoch": 3000.0,
+  "total_training_hours": 5.957073832088047,
+  "time_per_epoch_seconds": 7.146106562984661,
+  "final_success_rate": 0.25,
+  "final_completion_rate": 0.25,
+  "best_success_rate": 1.0,
+  "best_success_epoch": 1100.0,
+  "best_completion_rate": 1.0,
+  "best_completion_epoch": 1100.0,
+  "first_window_success_mean": 0.475,
+  "last_window_success_mean": 0.525,
+  "first_window_completion_mean": 0.475,
+  "last_window_completion_mean": 0.525,
+  "last_window_success_std": 0.2358495283014151,
+  "last_window_completion_std": 0.2358495283014151,
+  "success_mean_delta": 0.050000000000000044,
+  "completion_mean_delta": 0.050000000000000044
+}

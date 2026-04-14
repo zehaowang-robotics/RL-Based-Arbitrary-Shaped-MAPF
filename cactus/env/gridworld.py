@@ -505,19 +505,18 @@ class GridWorld(Environment):
             for anchor in self.get_goal_candidate_anchors(start_pose, self.init_goal_radius):
                 if anchor == start_anchor or anchor in occupied_goal_anchors:
                     continue
-                valid_orientations = list(self.valid_pose_orientations[anchor])
-                random.shuffle(valid_orientations)
-                for theta in valid_orientations:
-                    goal_pose = self.as_pose([anchor[0], anchor[1], theta])
-                    if not self.goal_pose_within_radius(start_pose, goal_pose, self.init_goal_radius):
-                        continue
-                    goal_cells = self.pose_cells_as_tuples(goal_pose)
-                    if not self.cells_are_available(goal_cells, occupied_goal_cells):
-                        continue
-                    sampled_goal_pose = goal_pose
-                    occupied_goal_cells.update(goal_cells)
-                    occupied_goal_anchors.add(anchor)
-                    break
+                theta = int(start_pose[ENV_2D].item())
+                if theta not in self.valid_pose_orientations[anchor]:
+                    continue
+                goal_pose = self.as_pose([anchor[0], anchor[1], theta])
+                if not self.goal_pose_within_radius(start_pose, goal_pose, self.init_goal_radius):
+                    continue
+                goal_cells = self.pose_cells_as_tuples(goal_pose)
+                if not self.cells_are_available(goal_cells, occupied_goal_cells):
+                    continue
+                sampled_goal_pose = goal_pose
+                occupied_goal_cells.update(goal_cells)
+                occupied_goal_anchors.add(anchor)
                 if sampled_goal_pose is not None:
                     break
             if sampled_goal_pose is None:
@@ -639,8 +638,10 @@ class GridWorld(Environment):
             }
         joint_action = joint_action.to(INT_TYPE).view(-1)
         is_done_before = self.is_terminated()
+        joint_action[is_done_before] = WAIT
         not_done = torch.logical_not(is_done_before)
         new_positions = self.transition_poses(joint_action)
+        new_positions[is_done_before] = self.current_positions[is_done_before]
         self.current_positions, collisions = self.move_to(new_positions)
         self.populate_position_map(self.current_position_map, self.current_positions)
         is_done_now = self.is_terminated()

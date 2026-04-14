@@ -103,7 +103,7 @@ def run_training(envs, test_envs, controller, params):
             areas_under_curve_success.append(float(result[SUCCESS_RATE]*training_time))
             areas_under_curve_completion.append(float(result[COMPLETION_RATE]*training_time))
             training_times.append(training_time)
-        if i > 0 and i%2000 == 0:
+        if i > 0 and i%500 == 0:
             controller.save_model_weights(params[DIRECTORY])
             result = {TOTAL_TIME: total_time, TIME_PER_EPOCH: total_time*1.0/(i + 1.0), SUCCESS_RATE: success_rates, COMPLETION_RATE: completion_rates, AUC_COMPLETION: areas_under_curve_completion, AUC_SUCCESS: areas_under_curve_success, TRAINING_TIME: training_times}
             data.save_json(join(params[DIRECTORY], f"results_{i}.json"), result)
